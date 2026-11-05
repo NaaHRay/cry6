@@ -399,7 +399,7 @@ function setupMotion() {
     });
   });
   gsap.from('.word', { y: 40, opacity: 0, duration: .8, stagger: .05, ease: 'power3.out', clearProps: 'all' });
-  gsap.from('.hero .lede, .ring-stage, .cue', { y: 20, opacity: 0, duration: .7, delay: .45, stagger: .1, ease: 'power2.out', clearProps: 'all' });
+  gsap.from('.hero .lede, .ring-stage', { y: 20, opacity: 0, duration: .7, delay: .45, stagger: .1, ease: 'power2.out', clearProps: 'all' });
 
   const mm = gsap.matchMedia();
 
@@ -415,7 +415,7 @@ function setupMotion() {
       heroTl.to(inner, { rotationY: 180, duration: .1, ease: 'power1.inOut' }, i * .08);
     });
     heroTl.to('.ring', { '--spread': 0, duration: .12, ease: 'power2.in' }, .72)
-      .to('.hero h1, .hero .lede, .cue', { opacity: 0, y: -30, duration: .1 }, .72)
+      .to('.hero h1, .hero .lede', { opacity: 0, y: -30, duration: .1 }, .72)
       .to('.ring', { opacity: 0, duration: .04 }, .86)
       .fromTo('.qcard-one', { opacity: 0, scale: .7 }, { opacity: 1, scale: 1, duration: .08 }, .86)
       .to({}, { duration: .06 });
