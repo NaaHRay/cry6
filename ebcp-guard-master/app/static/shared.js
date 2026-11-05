@@ -81,7 +81,7 @@ function mountReveal(root, { onAttempt } = {}) {
         <label for="reveal-key-${root.id}" style="display:block;margin-bottom:6px;font-weight:600">Service API key</label>
         <input id="reveal-key-${root.id}" data-r="key" class="field" type="password" autocomplete="off" spellcheck="false"
                placeholder="Leave empty to try with no key">
-        <p class="note" style="margin:6px 0 0">Kept in this page's memory only. It's sent to the server for this attempt, never saved.</p>
+        <p class="note" style="margin:6px 0 0">Kept in this page's memory only. It's sent to the server for this attempt, never saved. Demo keys are in README section 5.3.</p>
       </div>
       <div class="reveal-row">
         <button type="button" class="btn" data-r="try" disabled>Try to decrypt</button>
@@ -123,7 +123,7 @@ function mountReveal(root, { onAttempt } = {}) {
     part('attempts').prepend(row);
   }
 
-  part('seal').addEventListener('click', async () => {
+  async function seal() {
     part('seal').disabled = true;
     try {
       const res = await postJson(`${API}/protect`, SAMPLE_PAYMENT);
@@ -137,7 +137,8 @@ function mountReveal(root, { onAttempt } = {}) {
     } finally {
       part('seal').disabled = false;
     }
-  });
+  }
+  part('seal').addEventListener('click', seal);
 
   part('try').addEventListener('click', async () => {
     const key = part('key').value.trim();
@@ -156,12 +157,16 @@ function mountReveal(root, { onAttempt } = {}) {
         part('hide').hidden = false;
         logAttempt(200, 'Authorized. Value decrypted and the access recorded in the audit log.');
         setCard(true);
-      } else if (res.status === 401) {
-        logAttempt(401, 'Refused: no valid key. The attempt was recorded in the audit log.');
-      } else if (res.status === 403) {
-        logAttempt(403, 'Refused: this service may not decrypt. The attempt was recorded in the audit log.');
       } else {
-        logAttempt(res.status, 'The server could not decrypt this value.');
+        // A refusal must not leave an earlier decrypted value on screen.
+        if (!part('hide').hidden) { showSealed(); setCard(false); }
+        if (res.status === 401) {
+          logAttempt(401, `Refused: ${key ? 'this key is not valid on this server' : 'no key was sent'}. The attempt was recorded in the audit log.`);
+        } else if (res.status === 403) {
+          logAttempt(403, 'Refused: this service may not decrypt. The attempt was recorded in the audit log.');
+        } else {
+          logAttempt(res.status, 'The server could not decrypt this value.');
+        }
       }
     } catch {
       logAttempt(0, 'Unable to reach the server.');
@@ -171,6 +176,10 @@ function mountReveal(root, { onAttempt } = {}) {
     onAttempt?.();
   });
 
+  part('key').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !part('try').disabled) part('try').click();
+  });
+
   part('hide').addEventListener('click', () => {
     showSealed();
     setCard(false);
@@ -178,6 +187,7 @@ function mountReveal(root, { onAttempt } = {}) {
   });
 
   setSealed(null);
+  seal(); // ready to try straight away; if this fails the button stays as a retry
   return { setSealed };
 }
 
@@ -232,7 +242,7 @@ function mountFeed(root, { filter = false, onRender } = {}) {
       events = await res.json();
       part('status').textContent = events.length
         ? `Newest ${events.length} events for tenant ${DEMO_TENANT}.`
-        : 'No events yet. Run a request above and refresh.';
+        : 'No events yet. Run a request and refresh.';
       if (filter) {
         const select = part('filter');
         const chosen = select.value;
@@ -241,7 +251,8 @@ function mountFeed(root, { filter = false, onRender } = {}) {
         select.options[0].value = '';
         select.value = actions.includes(chosen) ? chosen : '';
       }
-      onRender?.(draw());
+      const rows = draw(); // outside the call: ?.() would skip it when there's no onRender
+      onRender?.(rows);
     } catch {
       part('status').textContent = 'Live log unavailable.';
       part('rows').replaceChildren();
@@ -275,7 +286,6 @@ async function mountEvaluation(root, { onRender } = {}) {
 
   const { test_records: records, systems } = report.head_to_head;
   const names = Object.keys(systems);
-  const [ours, stock, combined] = names.map((n) => systems[n]);
 
   const intro = el('p', 'note', `${records} synthetic test records from the held-out split. This compares detection only: encryption, tokens and exposure scoring aren't part of this test. EBCP-Guard's row is its regex detector.`);
   intro.style.marginBottom = '32px';
@@ -319,32 +329,8 @@ async function mountEvaluation(root, { onRender } = {}) {
     panels.append(panel);
   });
 
-  const short = el('div', 'eval-short');
-  const list = el('ul');
-  const span = report.model_evaluation.entity_detection;
-  const typeF1 = (s, t) => f3(s.scores.per_type[t].f1);
-  [
-    `The regex detector doesn't find person names at all (F1 ${typeF1(ours, 'PERSON')}), so names pass through it unprotected.`,
-    `Presidio + regexes has higher recall (${f3(combined.scores.micro.recall)} vs ${f3(ours.scores.micro.recall)}). It misses less, but its precision is ${f3(combined.scores.micro.precision)} vs ${f3(ours.scores.micro.precision)}, so it raises far more false alarms.`,
-    `Stock Presidio beats it on phone numbers (F1 ${typeF1(stock, 'PHONE')} vs ${typeF1(ours, 'PHONE')}).`,
-    `Exact entity boundaries are harder: ${span.exact_matches} of ${span.total_gold_entities} matched exactly (F1 ${f3(span.span_exact_f1)}).`,
-  ].forEach((text) => list.append(el('li', '', text)));
-  const evasionItem = el('li', '', 'Disguised values: run the "Disguise the data" attack to see how many get through.');
-  list.append(evasionItem);
-  short.append(el('h3', '', 'Where it falls short'), list);
-
   const chart = el('div', 'eval-chart');
   chart.append(legend, panels);
-  root.replaceChildren(intro, stats, chart, short);
+  root.replaceChildren(intro, stats, chart);
   onRender?.(root);
-
-  try {
-    const res = await postJson(`${API}/simulate-attack`, { scenario: 'evasion', tenant_id: DEMO_TENANT });
-    if (res.ok) {
-      const { details } = await res.json();
-      const found = details.samples.filter((s) => s.matches_found > 0).length;
-      const total = details.samples.length;
-      evasionItem.textContent = `Disguised values: ${total - found} of ${total} samples got past the detector in the latest run.`;
-    }
-  } catch { /* the line above stays accurate without this number */ }
 }

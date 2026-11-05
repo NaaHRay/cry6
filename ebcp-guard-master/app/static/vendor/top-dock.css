@@ -1,0 +1,299 @@
+/* The modern "Command Bar" from ThreeUI's AnimatedTopDock (@designcodeio/threeui 1.2.0).
+   Source: src/shaders/threeui.css, sha256 efe4447139f1358dd8e9be68edf6fa46cbefbd1de423a4d6c439ca61d2c8eccf
+
+   Changed from the source: colours use this project's palette; the demo frame is now a
+   fixed strip; --atd-top is smaller; links replace buttons, so aria-current replaces
+   aria-pressed; the `font: ... inherit` shorthands, which browsers reject, name a font;
+   focus outlines and phone touch areas are added. Aurora, stage and caption are left out.
+
+MIT License
+
+Copyright (c) 2026 Meng To
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/* Zero height, so the strip never blocks the page; the bar hangs out of it. */
+.animated-top-dock-component.atd-modern {
+  --atd-top: clamp(10px, 1cqw, 16px);
+  --atd-bar-width: min(1240px, calc(100% - clamp(24px, 5cqw, 120px)));
+  --atd-bar-height: clamp(48px, 3.4cqw, 68px);
+  --atd-bar-pad: clamp(5px, 0.42cqw, 9px);
+  --atd-bar-lead: clamp(14px, 1.15cqw, 25px);
+  --atd-item-height: clamp(30px, 2.2cqw, 44px);
+  --atd-item-pad: clamp(10px, 0.86cqw, 18px);
+  --atd-label: clamp(12px, 0.78cqw, 17px);
+  --atd-icon: clamp(13px, 0.92cqw, 19px);
+  --atd-gap: clamp(5px, 0.44cqw, 9px);
+  --atd-brand: clamp(13px, 0.94cqw, 20px);
+  --atd-mark: clamp(22px, 1.55cqw, 33px);
+  --atd-action-height: clamp(34px, 2.5cqw, 50px);
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 0;
+  container-type: inline-size;
+  font-family: var(--sans);
+}
+
+/* Command bar: the bar hugs its own content. That only holds because the dock's
+   track is locked to its rest width (lockTrack in the controller): the spring grows
+   its items outside that track instead of shoving the brand and the actions around. */
+.atd-modern__bar {
+  position: absolute;
+  top: var(--atd-top);
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  gap: clamp(14px, 2.4cqw, 40px);
+  align-items: center;
+  justify-content: space-between;
+  width: max-content;
+  max-width: var(--atd-bar-width);
+  height: var(--atd-bar-height);
+  padding: var(--atd-bar-pad) var(--atd-bar-pad) var(--atd-bar-pad) var(--atd-bar-lead);
+  border: 1px solid rgba(80, 138, 168, 0.4);
+  border-radius: 999px;
+  background: rgba(3, 25, 39, 0.88);
+  box-shadow: 0 22px 52px -24px var(--ink), inset 0 1px rgba(200, 224, 244, 0.08);
+  transform: translateX(-50%);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+.atd-modern__bar a:focus-visible {
+  outline: 2px solid var(--baby);
+  outline-offset: 2px;
+}
+
+.atd-modern__dock {
+  display: flex;
+  flex: none;
+  gap: clamp(2px, 0.2cqw, 5px);
+  align-items: flex-start;
+  justify-content: center;
+  height: var(--atd-item-height);
+}
+
+.atd-modern__item {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  gap: var(--atd-gap);
+  align-items: center;
+  justify-content: center;
+  height: var(--atd-item-height);
+  padding: 0 var(--atd-item-pad);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--baby);
+  background: transparent;
+  font: 500 var(--atd-label) / 1 var(--sans);
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  white-space: nowrap;
+  transform-origin: 50% 0;
+  transition: color 0.16s, border-color 0.18s, background 0.18s, box-shadow 0.18s, backdrop-filter 0.18s;
+  will-change: width, height, transform;
+  cursor: pointer;
+}
+
+/* :hover is carried alongside the proximity flag so the glass still lands when
+   the spring is off: reduced motion, a coarse pointer, a narrow viewport */
+.atd-modern__item[data-dock-near="true"],
+.atd-modern__item:hover,
+.atd-modern__item:focus-visible {
+  color: var(--pale);
+  border-color: rgba(200, 224, 244, 0.12);
+  background: rgba(80, 138, 168, 0.28);
+  box-shadow: 0 8px 20px -14px var(--ink), inset 0 1px rgba(200, 224, 244, 0.08);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+.atd-modern__item[aria-current] {
+  color: var(--ink);
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--pale), var(--baby));
+  box-shadow: 0 10px 24px -12px var(--baby), inset 0 -1px rgba(3, 25, 39, 0.14);
+}
+
+.atd-modern__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--atd-icon);
+  height: var(--atd-icon);
+  opacity: 0.72;
+  transition: opacity 0.16s;
+}
+
+.atd-modern__icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.atd-modern__item[data-dock-near="true"] .atd-modern__icon,
+.atd-modern__item[aria-current] .atd-modern__icon {
+  opacity: 1;
+}
+
+.atd-modern__brand {
+  display: inline-flex;
+  flex: none;
+  gap: clamp(7px, 0.6cqw, 13px);
+  align-items: center;
+  color: var(--pale);
+  text-decoration: none;
+}
+
+.atd-modern__mark {
+  display: grid;
+  place-items: center;
+  width: var(--atd-mark);
+  height: var(--atd-mark);
+  overflow: hidden;
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--baby);
+}
+
+.atd-modern__mark .crest {
+  width: 66%;
+  height: 66%;
+}
+
+.atd-modern__word {
+  font-size: var(--atd-brand);
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+
+.atd-modern__actions {
+  display: inline-flex;
+  flex: none;
+  gap: clamp(4px, 0.34cqw, 8px);
+  align-items: center;
+}
+
+.atd-modern__ghost {
+  display: inline-flex;
+  align-items: center;
+  height: var(--atd-action-height);
+  padding: 0 clamp(12px, 0.95cqw, 20px);
+  border-radius: 999px;
+  color: var(--baby);
+  font: 500 var(--atd-label) / 1 var(--sans);
+  text-decoration: none;
+  transition: color 0.16s, background 0.16s;
+}
+
+.atd-modern__ghost:hover {
+  color: var(--pale);
+  background: rgba(80, 138, 168, 0.28);
+}
+
+.atd-modern__cta {
+  position: relative;
+  display: inline-flex;
+  gap: var(--atd-gap);
+  align-items: center;
+  height: var(--atd-action-height);
+  padding: 0 var(--atd-bar-pad) 0 clamp(14px, 1.1cqw, 24px);
+  border-radius: 999px;
+  color: var(--pale);
+  background: linear-gradient(180deg, var(--ember), color-mix(in srgb, var(--ember) 86%, var(--ink)));
+  box-shadow: 0 10px 26px -14px var(--ember), inset 0 -1px rgba(3, 25, 39, 0.16);
+  font: 600 var(--atd-label) / 1 var(--sans);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s;
+}
+
+.atd-modern__cta svg {
+  box-sizing: border-box;
+  width: calc(var(--atd-action-height) - clamp(12px, 0.9cqw, 20px));
+  height: calc(var(--atd-action-height) - clamp(12px, 0.9cqw, 20px));
+  padding: clamp(4px, 0.3cqw, 7px);
+  border-radius: 999px;
+  background: rgba(3, 25, 39, 0.22);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.atd-modern__cta:hover {
+  box-shadow: 0 16px 32px -14px var(--ember), inset 0 -1px rgba(3, 25, 39, 0.16);
+  transform: translateY(-1px);
+}
+
+@container (max-width: 900px) {
+  .atd-modern__ghost {
+    display: none;
+  }
+
+  .atd-modern__item span:last-child {
+    display: none;
+  }
+
+  .atd-modern__cta span {
+    display: none;
+  }
+
+  .atd-modern__cta {
+    padding: 0 var(--atd-bar-pad);
+  }
+}
+
+@media (max-width: 600px) {
+  .atd-modern__word {
+    display: none;
+  }
+
+  .atd-modern__item {
+    height: 28px !important;
+    transform: none !important;
+  }
+}
+
+/* The icons stay small on touch screens; the tap area doesn't. */
+@media (pointer: coarse) {
+  .atd-modern__item::before,
+  .atd-modern__cta::before {
+    position: absolute;
+    inset: -8px 0;
+    content: "";
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atd-modern__item {
+    transform: none !important;
+  }
+}

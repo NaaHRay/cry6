@@ -28,7 +28,7 @@
 /* Author display rules would otherwise beat the hidden attribute. */
 [hidden] { display: none !important; }
 /* Air falls under 4.5:1 once a panel lightens the ink behind it. */
-.reveal, .result, .attack { --muted: var(--muted-panel); }
+.reveal, .attack { --muted: var(--muted-panel); }
 ::placeholder { color: var(--fg); opacity: .8; }
 
 .kit { font-family: var(--sans); }
@@ -105,10 +105,6 @@
 .series-0 { background: var(--ember); }
 .series-1 { background: var(--air); }
 .series-2 { background: var(--ink); }
-
-.eval-short { margin-top: 24px; padding: 28px; border-radius: 22px; background: var(--baby); color: var(--ink); }
-.eval-short h3 { margin: 0 0 12px; font: 600 1.125rem var(--sans); }
-.eval-short ul { display: grid; gap: 10px; margin: 0; padding-left: 20px; line-height: 1.5; list-style: disc; }
 
 @media (max-width: 767px) {
   .eval-stats { grid-template-columns: 1fr; }

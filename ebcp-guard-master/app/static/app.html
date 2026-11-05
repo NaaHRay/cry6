@@ -113,9 +113,6 @@
         <button id="nav-btn-hacker" onclick="switchTab('hacker')" class="px-3 py-1.5 rounded text-xs font-medium transition text-slate-400 hover:text-slate-200 hover:border-[#508AA8] border border-transparent">
           Break It
         </button>
-        <button id="nav-btn-reveal" onclick="switchTab('reveal')" class="px-3 py-1.5 rounded text-xs font-medium transition text-slate-400 hover:text-slate-200 hover:border-[#508AA8] border border-transparent">
-          Reveal
-        </button>
         <button id="nav-btn-logs" onclick="switchTab('logs')" class="px-3 py-1.5 rounded text-xs font-medium transition text-slate-400 hover:text-slate-200 hover:border-[#508AA8] border border-transparent">
           Logs
         </button>
@@ -736,16 +733,8 @@ Master Key (256-bit Hardware Key Storage)
 
 
   <!-- ============================================================== -->
-  <!-- REVEAL, LOGS, EVALUATION (components in shared.js) -->
+  <!-- LOGS, EVALUATION (components in shared.js) -->
   <!-- ============================================================== -->
-  <main id="tab-reveal" class="hidden s-ink flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <div class="mb-5 pb-3 border-b border-slate-700">
-      <h1 class="text-lg font-semibold text-white">Reveal</h1>
-      <p class="text-xs text-slate-400 mt-0.5">The right service can get a value back. Try it three ways: no key, a key without decrypt rights, then a key with them.</p>
-    </div>
-    <div id="reveal-mount"></div>
-  </main>
-
   <main id="tab-logs" class="hidden s-ink flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <div class="mb-5 pb-3 border-b border-slate-700">
       <h1 class="text-lg font-semibold text-white">Logs</h1>
@@ -777,7 +766,7 @@ Master Key (256-bit Hardware Key Storage)
     }
 
     function switchTab(tab) {
-      ['gateway', 'hacker', 'reveal', 'logs', 'evaluation', 'architecture'].forEach(t => {
+      ['gateway', 'hacker', 'logs', 'evaluation', 'architecture'].forEach(t => {
         const btn = document.getElementById(`nav-btn-${t}`);
         const panel = document.getElementById(`tab-${t}`);
         panel.classList.toggle('hidden', t !== tab);
@@ -792,7 +781,6 @@ Master Key (256-bit Hardware Key Storage)
       }
     }
 
-    const reveal = mountReveal(document.getElementById('reveal-mount'));
     const feed = mountFeed(document.getElementById('feed-mount'), { filter: true });
     let evaluationLoaded = false;
 
@@ -974,8 +962,6 @@ Master Key (256-bit Hardware Key Storage)
       }
 
       renderResults(requestData, analyze, protect);
-      const sealed = pickSealed(protect.entity_decisions);
-      if (sealed) reveal.setSealed(sealed);
       showView('view-results', 'result-hero-title');
     }
 

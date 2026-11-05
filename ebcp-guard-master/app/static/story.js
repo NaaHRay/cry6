@@ -6,108 +6,14 @@ let lenis = null;
 
 const relayout = () => { if (window.ScrollTrigger) ScrollTrigger.refresh(); };
 
-// ---- Gateway demo ----
-const PRESETS = {
-  payment: SAMPLE_PAYMENT,
-  marketing: {
-    endpoint: '/api/v1/customer/profile', http_method: 'POST', destination_service: 'marketing_crm', tenant_id: DEMO_TENANT,
-    payload: { customer_name: 'Priya Sharma', email: 'priya.sharma@example.com', phone: '+919811223344', pan: 'ABCPS1234F', account_number: '987654321098', ifsc_code: 'ICIC0002345', amount: 2500 },
-  },
-  log: {
-    endpoint: '/api/v1/auth/logs', http_method: 'POST', destination_service: 'application_logs', tenant_id: DEMO_TENANT,
-    payload: { customer_name: 'Vikram Adani', email: 'vikram.adani@example.in', phone: '+919876500000', pan: 'ABCDE1234F', account_number: '554433221100', ifsc_code: 'SBIN0001111', amount: 100 },
-  },
-  blacklisted: {
-    endpoint: '/api/v1/analytics/events', http_method: 'POST', destination_service: 'untrusted_external', tenant_id: DEMO_TENANT,
-    payload: { customer_name: 'Ananya Iyer', email: 'ananya.iyer@exfil-test.com', phone: '+919988776655', pan: 'ABCPA5678K', account_number: '998877665544', ifsc_code: 'KKBK0001234', aadhaar: '9988 7766 5544', amount: 500000 },
-  },
-};
-
+// ---- What each action means, read by the five answers block ----
 const VERDICTS = {
   ALLOW: ['Allowed through', 'Nothing here needed protecting under this policy.'],
   MASK: ['Masked', 'Identifying characters were removed. Masked values cannot be restored from the output.'],
   TOKENIZE: ['Tokenized', 'Sensitive values became tokens tied to this tenant, purpose and time period. Tokens cannot be reversed without the secret key.'],
   ENCRYPT: ['Encrypted', 'Sensitive values were encrypted with AES-256-GCM. Only an authorized service can read them. Try that in Chapter 04.'],
   BLOCK: ['Blocked', 'This destination may not receive this data. Nothing was sent onward.'],
-  QUARANTINE: ['Held for review', 'The request is held for a person to check. Nothing was sent onward.'],
 };
-
-function selectPreset(name) {
-  $('gw-input').value = JSON.stringify(PRESETS[name], null, 2);
-  document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.preset === name)));
-}
-
-function showGatewayMessage(text) {
-  $('gw-result').replaceChildren(el('p', 'note', text));
-}
-
-function showGatewayResult(request, analyze, protect) {
-  const action = protect.protection_decision;
-  const [title, explanation] = VERDICTS[action] || [action, ''];
-  const parts = [el('i', 'crest'), chip(action), el('h4', '', title), el('p', '', explanation)];
-
-  const types = [...new Set(analyze.detected_entities.map((e) => e.entity_type))];
-  const pills = el('div', 'result-pills');
-  pills.append(...types.map((t) => chip(t)));
-  if (types.length) parts.push(pills);
-
-  parts.push(el('p', 'note', `Class ${analyze.sensitivity_class}, purpose ${analyze.purpose}, risk ${protect.risk_score.toFixed(2)} (${protect.risk_level})`));
-
-  const blocked = action === 'BLOCK' || action === 'QUARANTINE';
-  if (blocked) {
-    parts.push(el('p', 'note', 'Protected output: none, because no data was sent.'));
-  } else {
-    const output = el('pre', '', JSON.stringify(protect.protected_payload, null, 2));
-    output.setAttribute('data-lenis-prevent', '');
-    output.tabIndex = 0;
-    parts.push(output);
-    const unchanged = Object.keys(request.payload).filter((k) =>
-      typeof request.payload[k] === 'string' && request.payload[k] === protect.protected_payload[k]);
-    if (unchanged.length) {
-      const nameNote = unchanged.includes('customer_name') ? ' The regex detector does not recognise person names. See Chapter 06.' : '';
-      parts.push(el('p', 'result-warn', `Passed through unchanged: ${unchanged.join(', ')}.${nameNote}`));
-    }
-  }
-  parts.push(el('p', 'result-foot', `Request ${protect.request_id} · ${protect.processing_latency_ms} ms · Audit hash ${protect.audit_event_hash.slice(0, 16)}…`));
-  $('gw-result').replaceChildren(...parts);
-}
-
-async function runGateway() {
-  let request;
-  try {
-    request = JSON.parse($('gw-input').value);
-    if (!request || typeof request.payload !== 'object' || Array.isArray(request.payload) || !Object.keys(request.payload ?? {}).length) throw new Error();
-  } catch {
-    showGatewayMessage('That is not valid here. It needs to be JSON with a non-empty "payload" object.');
-    return;
-  }
-
-  const button = $('gw-run');
-  button.disabled = true;
-  showGatewayMessage('Running…');
-  try {
-    const [aRes, pRes] = await Promise.all([postJson(`${API}/analyze`, request), postJson(`${API}/protect`, request)]);
-    const failed = !aRes.ok ? aRes : (!pRes.ok ? pRes : null);
-    if (failed) {
-      showGatewayMessage(failed.status === 401
-        ? 'The live demo runs in development mode.'
-        : failed.status >= 500
-          ? `The gateway hit an internal error (HTTP ${failed.status}).`
-          : `The gateway rejected this request (HTTP ${failed.status}). Check the JSON and try again.`);
-      return;
-    }
-    const [analyze, protect] = await Promise.all([aRes.json(), pRes.json()]);
-    showGatewayResult(request, analyze, protect);
-    const sealed = pickSealed(protect.entity_decisions);
-    if (sealed && request.tenant_id === DEMO_TENANT) reveal.setSealed(sealed);
-    feed.refresh();
-  } catch {
-    showGatewayMessage('Unable to reach the gateway. Check that the server is running.');
-  } finally {
-    button.disabled = false;
-    relayout();
-  }
-}
 
 // ---- Break It ----
 const ATTACKS = [
@@ -264,7 +170,7 @@ async function loadScoreboard() {
     $('log-protected').textContent = logs.protected_log;
   } catch {
     $('score-note').textContent = 'The attacks could not run. Check that the server is running.';
-    $('log-compare').hidden = true;
+    $('log-compare').replaceChildren(el('p', 'note', 'The log comparison could not load. Check that the server is running.'));
   }
 }
 
@@ -308,64 +214,20 @@ function selectAnswer(action) {
   relayout();
 }
 
-const feed = mountFeed($('feed-mount'), { onRender: (rows) => {
-  relayout();
-  loadChain();
-  if (window.gsap && motionOk() && rows.length) gsap.from(rows, { opacity: 0, duration: .3, stagger: .015, clearProps: 'opacity' });
-} });
-const reveal = mountReveal($('reveal-mount'), { onAttempt: () => { feed.refresh(); relayout(); } });
+mountReveal($('reveal-mount'), { onAttempt: relayout });
 
-document.querySelectorAll('[data-preset]').forEach((b) => b.addEventListener('click', () => selectPreset(b.dataset.preset)));
 document.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', () => selectAnswer(b.dataset.action)));
-$('gw-run').addEventListener('click', runGateway);
 $('own-run').addEventListener('click', runOwnCheck);
 $('sheet-close').addEventListener('click', closeSheet);
 $('attack-sheet').addEventListener('close', () => { lenis?.start(); lastAttackButton?.focus(); });
 $('attack-sheet').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeSheet(); });
 
-selectPreset('payment');
 buildAttacks();
 fetch('/docs').then((r) => r.ok).catch(() => false).then((up) => {
-  document.querySelectorAll('#docs-link, [data-docs]').forEach((link) => { link.hidden = !up; });
+  document.querySelectorAll('a[href="/docs"]').forEach((link) => { link.hidden = !up; });
 });
-feed.refresh();
 
 // ---- Footer ----
-// One node per recent audit event, oldest on the left.
-let chainKey = '';
-async function loadChain() {
-  const read = $('chain-read');
-  const line = $('chain');
-  const message = (text) => { chainKey = ''; line.replaceChildren(); read.textContent = text; };
-  try {
-    const res = await fetch(`${API}/audit/events?tenant_id=${DEMO_TENANT}&limit=12`);
-    if (!res.ok) throw new Error();
-    const events = (await res.json()).reverse();
-    if (!events.length) { message('No events yet. Run a request above.'); return; }
-    const key = events.map((e) => e.sequence_number).join();
-    if (key === chainKey) return; // keeps keyboard focus when nothing changed
-    chainKey = key;
-    const select = (node, text) => {
-      line.querySelectorAll('.on').forEach((n) => n.classList.remove('on'));
-      node.classList.add('on');
-      read.textContent = text;
-    };
-    line.replaceChildren(...events.map((e) => {
-      const risk = typeof e.risk_score === 'number' ? ` risk ${e.risk_score.toFixed(2)}` : '';
-      const text = `#${e.sequence_number} ${e.protection_action || e.event_type}${risk} ${e.hash_prefix}…`;
-      const node = el('button', 'chain-node');
-      node.type = 'button';
-      node.setAttribute('aria-label', text);
-      ['pointerenter', 'focus', 'click'].forEach((type) => node.addEventListener(type, () => select(node, text)));
-      return node;
-    }));
-    const last = line.lastElementChild;
-    select(last, last.getAttribute('aria-label'));
-  } catch {
-    message('Live log unavailable.');
-  }
-}
-
 const hoverMotion = () => motionOk() && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 // The hairline bends toward the pointer, then wobbles back on release.
@@ -516,7 +378,7 @@ function setupMotion() {
   gsap.registerPlugin(ScrollTrigger);
 
   if (window.Lenis) {
-    lenis = new Lenis({ lerp: 0.1, anchors: { offset: -60 } });
+    lenis = new Lenis({ lerp: 0.1, anchors: true });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((t) => lenis.raf(t * 1000));
     gsap.ticker.lagSmoothing(0);
@@ -581,18 +443,18 @@ function setupMotion() {
     // 3. Gateway: nine stages shown on the phone, pinned. Ends before the live demo.
     const stages = gsap.utils.toArray('.stages li');
     const count = document.querySelector('.stage-count');
-    const code = document.querySelector('.stage-code');
+    const panels = gsap.utils.toArray('.stage-panel');
     let current = -1;
     const setStage = (i) => {
       if (i === current) return;
       current = i;
       stages.forEach((s, n) => s.classList.toggle('on', n === i));
       count.textContent = `Step ${i + 1} of ${stages.length}`;
-      code.textContent = stages[i].querySelector('code').textContent;
+      panels.forEach((panel, n) => { panel.hidden = n !== i; });
       document.querySelector('.stage-name').textContent = stages[i].querySelector('strong').textContent;
       document.querySelector('.stage-num').textContent = String(i + 1).padStart(2, '0');
       document.querySelector('.stage-explain').textContent = stages[i].querySelector('span').textContent;
-      gsap.fromTo(code, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .3, overwrite: true });
+      gsap.fromTo(panels[i], { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .3, overwrite: true });
     };
     setStage(0);
     ScrollTrigger.create({
@@ -647,26 +509,20 @@ function setupMotion() {
   document.fonts?.ready.then(relayout);
 }
 
-function animateEvaluation(root) {
-  relayout();
-  if (!window.gsap || !motionOk()) return;
-  gsap.from(root.querySelectorAll('.eval-bar'), {
-    scaleX: 0, transformOrigin: 'left center', duration: .8, ease: 'power2.out', stagger: .02, clearProps: 'transform',
-    scrollTrigger: { trigger: root.querySelector('.eval-panels'), start: 'top 85%', once: true },
-  });
-  root.querySelectorAll('[data-count]').forEach((node) => {
-    const target = Number(node.dataset.count);
-    const final = node.textContent;
-    const n = { v: 0 };
-    gsap.to(n, {
-      v: target, duration: 1, ease: 'power2.out',
-      onUpdate: () => { node.textContent = f3(n.v); },
-      onComplete: () => { node.textContent = final; },
-      scrollTrigger: { trigger: node, start: 'top 90%', once: true },
+// ---- Nav bar: ThreeUI's dock, plus a pill that follows the chapter on screen. ----
+const dockOptions = { proximity: 122, spring: 0.19, damping: 0.7, widthGrowth: 17, heightGrowth: 16, drop: 3.5, axis: 'x', distribute: false, lockTrack: true };
+createTopDockController(document.querySelector('.atd-modern__dock'), () => dockOptions);
+
+const dockLinks = document.querySelectorAll('.atd-modern__item');
+const chapterWatch = new IntersectionObserver((entries) => {
+  entries.filter((entry) => entry.isIntersecting).forEach(({ target }) => {
+    dockLinks.forEach((link) => {
+      if (link.hash === `#${target.id}`) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
     });
   });
-}
+}, { rootMargin: '-50% 0px -50% 0px' });
+document.querySelectorAll('main > section, .site-foot').forEach((part) => chapterWatch.observe(part));
 
 setupMotion();
 loadScoreboard();
-mountEvaluation($('eval-mount'), { onRender: animateEvaluation });
